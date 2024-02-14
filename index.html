@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Motivation Tracker</title>
+    <style>
+        body {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 10px;
+            padding: 10px;
+        }
+        .bar-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .bar {
+            width: 30px;
+            height: 200px;
+            position: relative;
+            cursor: pointer;
+        }
+        .fill {
+            position: absolute;
+            width: 100%;
+            bottom: 0;
+        }
+        input[type="text"] {
+            margin-top: 10px;
+			width: 10em;
+            text-align: center;
+			transition: width 0.2s ease-in-out;
+        }
+		input[type="text"]:focus {
+			width: 25em;
+		}
+        #addBarBtn {
+            height: 40px;
+            align-self: center;
+        }
+		#author {
+			font-family: sans-serif;
+			width: 100%;
+			background-color:lightblue;
+			border-radius: 50px;
+			text-align: center;
+		}
+    </style>
+</head>
+<body>
+<div id="author">
+<h1>Motivation Tracker</h1>
+<a href="https://github.com/danieljudd">Author's Github</a>
+<p>Application remembers data when you drag a bar<p>
+<p>CTRL+D to bookmark app</p>
+</div>
+<button id="addBarBtn">Add Bar</button>
+
+<script>
+document.getElementById('addBarBtn').addEventListener('click', () => addBar({}, true));
+
+const colors = ['#FF6347', '#4682B4', '#32CD32', '#FFD700', '#6A5ACD', '#FF69B4', '#FCB24B', '#B5FC4B', '#5D8FFC'];
+let usedColors = [];
+
+window.onload = () => {
+    // Attempt to load saved bars
+    const savedBars = JSON.parse(localStorage.getItem('bars')) || [];
+    
+    if (savedBars.length > 0) {
+        // Load bars from saved data if available
+        savedBars.forEach(barData => addBar(barData, false));
+    } else {
+        // Add 3 default bars if there's no saved data
+        addBar({height: '50%', color: getNextColor(), label: 'Label your motivations'}, true);
+        addBar({height: '60%', color: getNextColor(), label: 'Drag the bar above each one'}, true);
+        addBar({height: '70%', color: getNextColor(), label: 'See what you should focus on'}, true);
+    }
+};
+
+
+function addBar(barData, save) {
+    const container = document.createElement('div');
+    container.className = 'bar-container';
+
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    const fill = document.createElement('div');
+    fill.className = 'fill';
+    fill.style.height = barData.height || '50%';
+    fill.style.backgroundColor = barData.color || getNextColor();
+    bar.appendChild(fill);
+
+    const label = document.createElement('input');
+    label.type = 'text';
+    label.placeholder = 'Label';
+    label.value = barData.label || '';
+    
+    container.appendChild(bar);
+    container.appendChild(label);
+
+    bar.addEventListener('mousedown', function(event) {
+        const barRect = bar.getBoundingClientRect();
+        
+        function mouseMoveHandler(e) {
+            const newHeight = Math.max(0, Math.min(100, ((e.clientY - barRect.top) / barRect.height) * 100));
+            fill.style.height = `${100 - newHeight}%`;
+        }
+
+        function mouseUpHandler() {
+            document.removeEventListener('mousemove', mouseMoveHandler);
+            document.removeEventListener('mouseup', mouseUpHandler);
+            reorderBars();
+            saveBars();
+        }
+
+        document.addEventListener('mousemove', mouseMoveHandler);
+        document.addEventListener('mouseup', mouseUpHandler);
+
+        event.preventDefault();
+    });
+
+    document.body.insertBefore(container, document.getElementById('addBarBtn'));
+    
+    if (save) saveBars();
+}
+
+function getNextColor() {
+    if (usedColors.length >= colors.length) usedColors = [];
+    let nextColor = colors.find(color => !usedColors.includes(color));
+    usedColors.push(nextColor);
+    return nextColor;
+}
+
+function reorderBars() {
+    const containers = Array.from(document.querySelectorAll('.bar-container'));
+    containers.sort((a, b) => {
+        const heightA = parseFloat(a.querySelector('.fill').style.height);
+        const heightB = parseFloat(b.querySelector('.fill').style.height);
+        return heightB - heightA;
+    });
+
+    const barContainer = document.body;
+    containers.forEach(container => barContainer.insertBefore(container, document.getElementById('addBarBtn')));
+}
+
+function saveBars() {
+    const barsData = Array.from(document.querySelectorAll('.bar-container')).map(container => {
+        const fill = container.querySelector('.fill');
+        const label = container.querySelector('input[type="text"]');
+        return {
+            height: fill.style.height,
+            color: fill.style.backgroundColor,
+            label: label.value
+        };
+    });
+
+    localStorage.setItem('bars', JSON.stringify(barsData));
+}
+</script>
+
+</body>
+</html>
